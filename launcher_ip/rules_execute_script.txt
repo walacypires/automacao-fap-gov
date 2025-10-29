@@ -1,0 +1,3 @@
+# EXECUTAR SCRPIT NO POWERSHELL
+
+powershell.exe -ExecutionPolicy Bypass -File "C:\Users\walacy.batista\Documents\Projetos\dev\launcher_ip\brave-pinned.ps1"
