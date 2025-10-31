@@ -7,6 +7,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
+from typing import Tuple, Optional
 from browser_config import (
     start_brave_with_active_profile,
     ATTACH_DEBUGGER,
@@ -104,7 +105,6 @@ def _build_host_resolver_rules(host_ip_map: Dict[str, str]):
     parts.append("EXCLUDE localhost")
     return ",".join(parts)
 
-
 def _safe_text(driver, xpath: str, timeout: int = 10) -> str:
     try:
         el = WebDriverWait(driver, timeout).until(EC.visibility_of_element_located((By.XPATH, xpath)))
@@ -124,10 +124,6 @@ def _input_value(driver, xpath: str) -> str:
         return (val or "").strip()
     except Exception:
         return ""
-
-
-from typing import Tuple
-
 
 def _parse_municipio_uf(raw_text: str) -> Tuple[str, str]:
     """Extrai Município e UF de um texto de endereço, ex:
@@ -157,7 +153,30 @@ def _parse_municipio_uf(raw_text: str) -> Tuple[str, str]:
     return municipio, uf
 
 
-def extract_result_data(driver, ano: str) -> dict:
+def _only_digits(s: str) -> str:
+    """Retorna apenas os dígitos presentes na string fornecida."""
+    try:
+        return "".join(ch for ch in str(s) if ch.isdigit())
+    except Exception:
+        return ""
+
+def _fmt_raiz_mask(raiz_digits: str) -> str:
+    """Formata CNPJ raiz (8 dígitos) como 'NN.NNN.NNN'; se diferente, retorna dígitos crus."""
+    d = _only_digits(raiz_digits)
+    if len(d) >= 8:
+        d = d[:8]
+        return f"{d[0:2]}.{d[2:5]}.{d[5:8]}"
+    return d
+
+def _extract_raiz_digits_from_label(label: str) -> str:
+    """Extrai somente os 8 dígitos da raiz do texto do input, ex.: '53.458.313 - NOME' -> '53458313'."""
+    if not label:
+        return ""
+    left = label.split(" - ")[0].strip() if " - " in label else label.strip()
+    d = _only_digits(left)
+    return d[:8] if len(d) >= 8 else d
+
+def extract_result_data(driver, ano: str, estab_label: Optional[str] = None) -> dict:
     """Extrai dados da área de resultado após clicar em Consultar."""
     LOG.info("Extraindo resultado...")
     # Aguarda painel e aliquota
@@ -171,9 +190,13 @@ def extract_result_data(driver, ano: str) -> dict:
         pass
 
     razao = _safe_text(driver, XP_RAZAO_SOCIAL)
-    cnpj_estab = _safe_text(driver, XP_CNPJ_ESTAB)
-    # Deriva CNPJ raiz do CNPJ completo (até a barra)
-    cnpj_raiz = cnpj_estab.split("/")[0].strip() if cnpj_estab else ""
+    cnpj_estab_raw = _safe_text(driver, XP_CNPJ_ESTAB)
+    # Somente dígitos
+    cnpj_estab = _only_digits(cnpj_estab_raw)
+    # CNPJ_Raiz: prioriza o valor do input (ex.: '53.458.313 - 3L SERVIços LTDA'), senão usa 8 dígitos do estab
+    cnpj_raiz_label = _input_value(driver, X_CNPJ_RAIZ)
+    cnpj_raiz_from_label = _extract_raiz_digits_from_label(cnpj_raiz_label)
+    cnpj_raiz = cnpj_raiz_from_label or (cnpj_estab[:8] if cnpj_estab else "")
     uf = _safe_text(driver, XP_UF)
     municipio = _safe_text(driver, XP_MUNICIPIO)
     # Se vier endereço completo, tenta extrair município e UF
@@ -191,16 +214,26 @@ def extract_result_data(driver, ano: str) -> dict:
         if uf_p:
             uf = uf_p
     aliquota = _safe_text(driver, XP_ALIQUOTA)
-    # Nome do estabelecimento: usa o valor selecionado no combobox
-    estab_nome = _input_value(driver, X_ESTABELECIMENTOS)
+    # Nome do estabelecimento:
+    # Preferência: rótulo capturado no loop (ex.: "53.458.313 - NOME").
+    # Fallback: monta "raiz formatada - razao social" usando a raiz obtida.
+    estab_nome = (estab_label or "").strip()
+    if not estab_nome:
+        raiz_mask = _fmt_raiz_mask(cnpj_raiz)
+        if razao:
+            estab_nome = f"{raiz_mask} - {razao}"
+        else:
+            # último recurso: usa o value do input
+            val = _input_value(driver, X_ESTABELECIMENTOS)
+            estab_nome = f"{raiz_mask} - {val}" if raiz_mask else val
     # Data/Hora da consulta (dd/mm/aaaa hh:mm:ss)
     data_consulta = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
     LOG.info(f"OK: {cnpj_raiz} | {estab_nome} | UF={uf} | Aliquota={aliquota}")
 
     return {
-        "CNPJ_Raiz": cnpj_raiz,
+        "CNPJ_Raiz": cnpj_raiz,         # apenas dígitos
         "Razao_Social": razao,
-        "CNPJ_Estab": cnpj_estab,
+        "CNPJ_Estab": cnpj_estab,       # apenas dígitos
         "Estab_Nome": estab_nome,
         "UF": uf,
         "Municipio": municipio,
@@ -933,13 +966,17 @@ def consultar_para_todos(driver, anos=("2025", "2026")):
                 except Exception:
                     time.sleep(0.8)
 
-                row = extract_result_data(driver, ano)
+                row = extract_result_data(driver, ano, estab_label=estab)
+
+                # remover Estab_Nome do relatório
+                row.pop("Estab_Nome", None)
+
                 append_row_to_excel(
                     path="relatorio_fap.xlsx",
                     row=row,
                     headers=[
-                        "CNPJ_Raiz","Razao_Social","CNPJ_Estab","Estab_Nome",
-                        "UF","Municipio","Vigencia","Aliquota","Data_Consulta",
+                        "CNPJ_Raiz", "Razao_Social", "CNPJ_Estab",
+                        "UF", "Municipio", "Vigencia", "Aliquota", "Data_Consulta",
                     ],
                 )
 

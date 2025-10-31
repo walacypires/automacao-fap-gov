@@ -1,0 +1,15 @@
+2025-10-31 08:55:46,003 [INFO] Log iniciado: logs\run-20251031_085546.log
+2025-10-31 08:56:12,239 [INFO] ====== Vigência 2025 ======
+2025-10-31 08:56:20,364 [INFO] Total coletado via JS: 314
+2025-10-31 08:56:20,365 [INFO] CNPJs coletados para 2025: 314
+2025-10-31 08:56:41,847 [INFO] [2025] CNPJ => 53.458.313 - 3L SERVICOS LTDA
+2025-10-31 08:56:42,064 [INFO] Selecionando por digitação: 53.458.313 - 3L SERVICOS LTDA
+2025-10-31 08:56:59,815 [INFO] Coletando opções via teclado (ARIA navigation)...
+2025-10-31 08:57:04,159 [INFO] Total coletado (teclado): 1
+2025-10-31 08:57:07,825 [INFO] [2025] Estabelecimentos detectados: 1
+2025-10-31 08:57:14,305 [INFO] [2025] 53.458.313 - 3L SERVICOS LTDA -> Estabelecimento => 53.458.313/0001-54
+2025-10-31 08:57:16,426 [INFO] Selecionando por digitação: 53.458.313/0001-54
+2025-10-31 08:57:27,479 [INFO] Clicando em Consultar (tentativa 1/3)...
+2025-10-31 08:57:30,782 [INFO] Clique em Consultar realizado; aguardando 5s...
+2025-10-31 08:57:54,317 [INFO] Extraindo resultado...
+2025-10-31 08:57:54,680 [INFO] OK: 53.458.313 | 53.458.313/0001-54 | UF=GO | Aliquota=1,0000

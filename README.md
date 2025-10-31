@@ -10,10 +10,14 @@ Este projeto automatiza o fluxo de consulta do FAP para múltiplas combinações
 - Realiza a consulta para cada combinação e extrai os dados do resultado
 - Gera um relatório em `.xlsx` (com fallback para `.csv` caso o `openpyxl` não esteja instalado)
 
-Os dados extraídos incluem:
-- CNPJ_Raiz, Razao_Social, CNPJ_Estab, Estab_Nome
+Os dados extraídos incluem (colunas do relatório):
+- CNPJ_Raiz, Razao_Social, CNPJ_Estab
 - UF e Município (com parser para tratar endereços completos como “Município - UF CEP …”)
 - Vigência, Alíquota e Data_Consulta
+
+Observações
+- Estab_Nome foi removida do relatório por padrão.
+- CNPJ_Raiz e CNPJ_Estab são gravados apenas com dígitos.
 
 ## Principais recursos
 
@@ -23,6 +27,12 @@ Os dados extraídos incluem:
 - Auxiliares robustos para dropdowns/combobox (clique, digitação, opção por texto, fallback de primeira opção)
 - Tratamento opcional do diálogo nativo de certificado do Windows via `pywinauto`
 - Exportação de resultados para Excel/CSV
+
+## Reativar a coluna Estab_Nome (opcional)
+
+No `main.py`, remova a linha que descarta a coluna e volte a incluí-la no cabeçalho:
+- Remover: `row.pop("Estab_Nome", None)`
+- Incluir no headers: `"Estab_Nome"`
 
 ## Estrutura do código
 
@@ -51,8 +61,6 @@ Os dados extraídos incluem:
   - Suporte a `PROXY_URL` e regras de host pode ser estendido se necessário
 
 - `main.py`:
-  - `BIND_DEST_IPS` – Hosts “pinnados” para IPs
-  - `VALIDATE_IPS_BEFORE` – Ativa validação TLS/SAN antes de iniciar
   - XPaths dos campos e resultados (ajuste se o HTML mudar)
 
 - Inicie o Brave com DevTools:
@@ -65,7 +73,7 @@ Os dados extraídos incluem:
 # py -m venv .venv; .\.venv\Scripts\Activate.ps1
 # py -m pip install selenium webdriver-manager openpyxl pywinauto
 
-# Inicie o Brave com remote debugging (exemplo; ajuste conforme seu ambiente)
+# Inicie o Brave com remote debugging
 # & "C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe" --remote-debugging-port=9222
 
 # Execute a automação
@@ -84,10 +92,3 @@ O relatório será salvo como `relatorio_fap.xlsx` (ou `relatorio_fap.csv` se fa
   - O arquivo será gravado em `.csv`. Instale `openpyxl` para `.xlsx`.
 - Diálogo de certificado travando o fluxo
   - Ative o watcher com `pywinauto` (ver `watch_and_accept_cert_dialog` em `sso_utils.py`).
-- Validação de IP/host falhando
-  - Desative `VALIDATE_IPS_BEFORE` ou ajuste `BIND_DEST_IPS` conforme sua rede.
-
-## Avisos
-
-- Esta automação acessa serviços protegidos do gov.br; use suas credenciais/certificado conforme as políticas da sua organização.
-- Ajuste XPaths e tempos de espera caso o HTML do portal mude.
